@@ -12,3 +12,4 @@ flate2 = "1.0.30"
 clap = {version = "4.5.7", features = ["derive"]}
 walkdir = "2.5.0"
 semver = "1.0.23"
+colored = "2.1.0"

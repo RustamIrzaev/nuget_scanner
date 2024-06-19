@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::path::PathBuf;
 use clap::{arg, Parser};
+use colored::Colorize;
 use flate2::read::GzDecoder;
 use regex::Regex;
 use reqwest::blocking::Client;
@@ -83,13 +84,25 @@ fn main() {
 
     for (name, version) in packages {
         if let Some(details) = fetch_package_details(&name, &version) {
-            let license_url = details.license_url.unwrap_or_else(|| "License URL not found".to_string());
-            let license_expression = details.license_expression.unwrap_or_else(|| "License expression not found".to_string());
+            let license_url = details.license_url.unwrap_or_else(|| "not found".to_string());
+            let license_expression = details.license_expression.unwrap_or_else(|| "not found".to_string());
             let latest_version = details.latest_version.clone().unwrap_or_else(|| "Unknown".to_string());
+            let is_outdated = details.version != latest_version;
+            let description = details.description.unwrap_or_else(|| "not found".to_string());
 
-            println!("Package: {}, Version: {} (latest: {}), License URL: {}, License: {}", name, version, latest_version, license_url, license_expression);
+            println!("- {}, version {} {} {}", name.bold().bright_blue(), version.italic().bright_blue(),
+                if is_outdated { "[outdated]".bright_red() } else { "".normal() },
+                if is_outdated { format!(" latest: {}", latest_version.bright_green()) } else { "".to_string() }
+            );
+
+            println!("  license: {}", license_expression.bright_yellow());
+            println!("  license URL: {}", license_url);
+            println!("  description: {}", description);
+            println!();
         } else {
-            println!("Package: {}, Version: {}, License: Not Found", name, version);
+            println!("- {}, version {}", name.bold().bright_blue(), version.italic().bright_blue());
+            println!("  {}", "Unable to fetch package details".italic().red().to_string());
+            println!();
         }
     }
 }
