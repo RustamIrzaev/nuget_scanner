@@ -1,10 +1,22 @@
-use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
+use std::path::PathBuf;
+use clap::{arg, Parser};
 use flate2::read::GzDecoder;
 use regex::Regex;
 use reqwest::blocking::Client;
+use semver::Version;
 use serde::Deserialize;
+use walkdir::WalkDir;
+
+#[derive(Parser)]
+struct Cli {
+    #[arg(short, long)]
+    folder: PathBuf,
+
+    #[clap(short, long, default_value = "10")]
+    max_depth: usize,
+}
 
 #[derive(Deserialize)]
 struct PackageVersion {
@@ -12,14 +24,30 @@ struct PackageVersion {
     catalog_entry: CatalogEntry,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 struct CatalogEntry {
     #[serde(rename = "version")]
     version: String,
+
     #[serde(rename = "licenseUrl")]
     license_url: Option<String>,
+
     #[serde(rename = "licenseExpression")]
     license_expression: Option<String>,
+
+    #[serde(rename = "projectUrl")]
+    project_url: Option<String>,
+
+    #[serde(rename = "description")]
+    description: Option<String>,
+
+    #[serde(rename = "iconUrl")]
+    icon_url: Option<String>,
+
+    //published: DateTime???,
+
+    #[serde(skip)]
+    latest_version: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -33,8 +61,10 @@ struct RegistrationIndex {
 }
 
 fn main() {
-    let dir = "<Path_to_c#_project>";
-    let package_files = find_package_files(dir);
+    let args = Cli::parse();
+
+    let folder = args.folder.to_string_lossy().to_string();
+    let package_files = find_package_files(&folder, args.max_depth);
     
     let mut packages = Vec::new();
     
@@ -46,24 +76,28 @@ fn main() {
         }
     }
 
+    if packages.is_empty() {
+        eprintln!("No NuGet packages found in the specified folder");
+        return;
+    }
+
     for (name, version) in packages {
         if let Some(details) = fetch_package_details(&name, &version) {
             let license_url = details.license_url.unwrap_or_else(|| "License URL not found".to_string());
             let license_expression = details.license_expression.unwrap_or_else(|| "License expression not found".to_string());
-            
-            println!("Package: {}, Version: {}, License URL: {}, License Expression: {}", name, version, license_url, license_expression);
+            let latest_version = details.latest_version.clone().unwrap_or_else(|| "Unknown".to_string());
+
+            println!("Package: {}, Version: {} (latest: {}), License URL: {}, License: {}", name, version, latest_version, license_url, license_expression);
         } else {
             println!("Package: {}, Version: {}, License: Not Found", name, version);
         }
     }
 }
 
-fn find_package_files(dir: &str) -> Vec<String> {
+fn find_package_files(folder: &str, max_depth: usize) -> Vec<String> {
     let mut package_files = Vec::new();
     
-    for entry in fs::read_dir(dir)
-        .expect("Unable to read directory") {
-        let entry = entry.expect("Unable to read entry");
+    for entry in WalkDir::new(folder).max_depth(max_depth).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
         
         if path.is_file() {
@@ -113,7 +147,7 @@ fn parse_csproj(file_path: &str) -> Vec<(String, String)> {
 }
 
 fn fetch_package_details(package_name: &str, version: &str) -> Option<CatalogEntry> {
-    let url = format!("https://api.nuget.org/v3/registration5-gz-semver2/{}/index.json", package_name.to_lowercase());
+    let url = format!("https://api.nuget.org/v3/registration5-gz-semver1/{}/index.json", package_name.to_lowercase());
     let client = Client::new();
     let response = client.get(&url).header("Accept-Encoding", "gzip").send().ok()?;
 
@@ -127,13 +161,37 @@ fn fetch_package_details(package_name: &str, version: &str) -> Option<CatalogEnt
 
     match serde_json::from_str::<RegistrationIndex>(&body) {
         Ok(registration_index) => {
-            for page in registration_index.items {
-                for package_version in page.items {
-                    if package_version.catalog_entry.version == version {
-                        return Some(package_version.catalog_entry);
+            let mut latest_version: Option<Version> = None;
+            let mut latest_entry: Option<&CatalogEntry> = None;
+            let mut target_entry: Option<&CatalogEntry> = None;
+
+            for page in &registration_index.items {
+                for package_version in &page.items {
+                    let entry = &package_version.catalog_entry;
+
+                    if let Ok(entry_version) = Version::parse(&entry.version) {
+                        if latest_version.is_none() || entry_version > * latest_version.as_ref().unwrap() {
+                            latest_version = Some(entry_version.clone());
+                            latest_entry = Some(entry);
+                        }
+
+                        if entry.version == version {
+                            target_entry = Some(entry);
+                        }
                     }
                 }
             }
+
+            if let Some(target) = target_entry {
+                let mut entry_with_latest = target.clone();
+
+                if let Some(latest) = latest_entry {
+                    entry_with_latest.latest_version = Some(latest.version.clone());
+                }
+
+                return Some(entry_with_latest);
+            }
+
             None
         },
         Err(e) => {
