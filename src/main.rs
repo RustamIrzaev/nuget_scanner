@@ -1,6 +1,3 @@
-use std::fs::File;
-use std::io::{BufRead, BufReader, Read};
-use std::path::PathBuf;
 use clap::{arg, Parser};
 use colored::Colorize;
 use flate2::read::GzDecoder;
@@ -8,6 +5,10 @@ use regex::Regex;
 use reqwest::blocking::Client;
 use semver::Version;
 use serde::Deserialize;
+use std::fs::File;
+use std::io::{BufRead, BufReader, Read};
+use std::path::PathBuf;
+use chrono::{DateTime, Utc};
 use walkdir::WalkDir;
 
 #[derive(Parser)]
@@ -42,13 +43,11 @@ struct CatalogEntry {
     #[serde(rename = "description")]
     description: Option<String>,
 
-    #[serde(rename = "iconUrl")]
-    icon_url: Option<String>,
-
-    //published: DateTime???,
-
     #[serde(skip)]
     latest_version: Option<String>,
+
+    #[serde(rename = "published")]
+    published_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Deserialize)]
@@ -66,9 +65,9 @@ fn main() {
 
     let folder = args.folder.to_string_lossy().to_string();
     let package_files = find_package_files(&folder, args.max_depth);
-    
+
     let mut packages = Vec::new();
-    
+
     for file in package_files {
         if file.ends_with("packages.config") {
             packages.extend(parse_packages_config(&file));
@@ -84,24 +83,57 @@ fn main() {
 
     for (name, version) in packages {
         if let Some(details) = fetch_package_details(&name, &version) {
-            let license_url = details.license_url.unwrap_or_else(|| "not found".to_string());
-            let license_expression = details.license_expression.unwrap_or_else(|| "not found".to_string());
-            let latest_version = details.latest_version.clone().unwrap_or_else(|| "Unknown".to_string());
+            let license_url = details
+                .license_url
+                .unwrap_or_else(|| "not found".to_string());
+            let license_expression = details
+                .license_expression
+                .unwrap_or_else(|| "not found".to_string());
+            let latest_version = details
+                .latest_version
+                .clone()
+                .unwrap_or_else(|| "Unknown".to_string());
             let is_outdated = details.version != latest_version;
-            let description = details.description.unwrap_or_else(|| "not found".to_string());
+            let description = details
+                .description
+                .unwrap_or_else(|| "not found".to_string());
+            let project_url = details.project_url.unwrap_or_else(|| "n/a".to_string());
+            let published_info = details.published_at
+                .map(|d| d.format("%d %b %Y").to_string())
+                .unwrap_or_else(|| "n/a".to_string());
 
-            println!("- {}, version {} {} {}", name.bold().bright_blue(), version.italic().bright_blue(),
-                if is_outdated { "[outdated]".bright_red() } else { "".normal() },
-                if is_outdated { format!(" latest: {}", latest_version.bright_green()) } else { "".to_string() }
+            println!(
+                "- {}, version {} {} {}",
+                name.bold().bright_blue(),
+                version.italic().bright_blue(),
+                if is_outdated {
+                    "[outdated]".bright_red()
+                } else {
+                    "".normal()
+                },
+                if is_outdated {
+                    format!(" latest: {}", latest_version.bright_green())
+                } else {
+                    "".to_string()
+                }
             );
 
             println!("  license: {}", license_expression.bright_yellow());
-            println!("  license URL: {}", license_url);
-            println!("  description: {}", description);
+            println!("  license URL: {}", license_url.bright_purple());
+            println!("  description: {}", description.bright_cyan());
+            println!("  package URL: {}", project_url.bright_magenta());
+            println!("  published at: {}", published_info.bright_cyan());
             println!();
         } else {
-            println!("- {}, version {}", name.bold().bright_blue(), version.italic().bright_blue());
-            println!("  {}", "Unable to fetch package details".italic().red().to_string());
+            println!(
+                "- {}, version {}",
+                name.bold().bright_blue(),
+                version.italic().bright_blue()
+            );
+            println!(
+                "  {}",
+                "Unable to fetch package details".italic().red().to_string()
+            );
             println!();
         }
     }
@@ -109,10 +141,14 @@ fn main() {
 
 fn find_package_files(folder: &str, max_depth: usize) -> Vec<String> {
     let mut package_files = Vec::new();
-    
-    for entry in WalkDir::new(folder).max_depth(max_depth).into_iter().filter_map(|e| e.ok()) {
+
+    for entry in WalkDir::new(folder)
+        .max_depth(max_depth)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
         let path = entry.path();
-        
+
         if path.is_file() {
             if let Some(ext) = path.extension() {
                 if ext == "config" || ext == "csproj" {
@@ -121,7 +157,7 @@ fn find_package_files(folder: &str, max_depth: usize) -> Vec<String> {
             }
         }
     }
-    
+
     package_files
 }
 
@@ -130,7 +166,7 @@ fn parse_packages_config(file_path: &str) -> Vec<(String, String)> {
     let file = File::open(file_path).expect("Unable to open file");
     let reader = BufReader::new(file);
     let regex = Regex::new(r#"<package id="([^"]+)" version="([^"]+)""#).unwrap();
-    
+
     for line in reader.lines() {
         if let Ok(line) = line {
             if let Some(captures) = regex.captures(&line) {
@@ -138,7 +174,7 @@ fn parse_packages_config(file_path: &str) -> Vec<(String, String)> {
             }
         }
     }
-    
+
     packages
 }
 
@@ -155,18 +191,25 @@ fn parse_csproj(file_path: &str) -> Vec<(String, String)> {
             }
         }
     }
-    
+
     packages
 }
 
 fn fetch_package_details(package_name: &str, version: &str) -> Option<CatalogEntry> {
-    let url = format!("https://api.nuget.org/v3/registration5-gz-semver1/{}/index.json", package_name.to_lowercase());
+    let url = format!(
+        "https://api.nuget.org/v3/registration5-gz-semver1/{}/index.json",
+        package_name.to_lowercase()
+    );
     let client = Client::new();
-    let response = client.get(&url).header("Accept-Encoding", "gzip").send().ok()?;
+    let response = client
+        .get(&url)
+        .header("Accept-Encoding", "gzip")
+        .send()
+        .ok()?;
 
     let mut decoder = GzDecoder::new(response);
     let mut body = String::new();
-    
+
     if decoder.read_to_string(&mut body).is_err() {
         return None;
     }
@@ -183,7 +226,9 @@ fn fetch_package_details(package_name: &str, version: &str) -> Option<CatalogEnt
                     let entry = &package_version.catalog_entry;
 
                     if let Ok(entry_version) = Version::parse(&entry.version) {
-                        if latest_version.is_none() || entry_version > * latest_version.as_ref().unwrap() {
+                        if latest_version.is_none()
+                            || entry_version > *latest_version.as_ref().unwrap()
+                        {
                             latest_version = Some(entry_version.clone());
                             latest_entry = Some(entry);
                         }
@@ -206,7 +251,7 @@ fn fetch_package_details(package_name: &str, version: &str) -> Option<CatalogEnt
             }
 
             None
-        },
+        }
         Err(e) => {
             eprintln!("Failed to deserialize JSON: {}", e);
             None
