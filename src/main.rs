@@ -2,6 +2,7 @@ use clap::Parser;
 use colored::Colorize;
 
 use crate::cli::Cli;
+use crate::models::package_info::PackageInfo;
 use crate::services::convert_and_map_packages::convert_and_map_packages;
 use crate::services::find_package_files::find_package_files;
 use crate::utils::parse_configs::{parse_csproj, parse_packages_config};
@@ -34,6 +35,10 @@ fn main() {
 
     let package_data = convert_and_map_packages(packages);
 
+    print_packages_info(package_data);
+}
+
+fn print_packages_info(package_data: Vec<PackageInfo>) {
     for info in package_data {
         if info.is_parsed_ok {
             println!(
