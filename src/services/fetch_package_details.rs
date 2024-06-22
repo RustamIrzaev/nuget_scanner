@@ -78,8 +78,8 @@ pub fn fetch_package_details(package_name: &str, version: &str) -> Option<Catalo
 
             None
         }
-        Err(e) => {
-            eprintln!("Failed to deserialize JSON: {}", e);
+        Err(_) => {
+            // eprintln!("Failed to deserialize JSON: {}", e);
             None
         }
     }

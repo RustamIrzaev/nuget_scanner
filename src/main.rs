@@ -1,13 +1,13 @@
 use std::fs::File;
 use std::io::Write;
+use std::path::PathBuf;
 use clap::Parser;
 use colored::Colorize;
 
 use crate::cli::Cli;
-use crate::models::package_info::PackageInfo;
-use crate::services::convert_and_map_packages::convert_and_map_packages;
+use crate::models::project_info::ProjectInfo;
+use crate::services::process_projects_data::process_projects_data;
 use crate::services::find_package_files::find_package_files;
-use crate::utils::parse_configs::{parse_csproj, parse_packages_config};
 
 mod cli;
 mod models;
@@ -20,104 +20,115 @@ fn main() {
     let folder = args.folder.to_string_lossy().to_string();
     let package_files = find_package_files(&folder, args.max_depth);
 
-    let mut packages = Vec::new();
+     let project_dirs: Vec<PathBuf> = package_files.iter()
+        .filter(|file| file.ends_with(".csproj"))
+        .map(|file| PathBuf::from(file).parent().unwrap().to_path_buf())
+        .collect();
 
-    for file in package_files {
-        if file.ends_with("packages.config") {
-            packages.extend(parse_packages_config(&file));
-        } else if file.ends_with(".csproj") {
-            packages.extend(parse_csproj(&file));
-        }
-    }
+    let project_infos = process_projects_data(project_dirs);
 
-    if packages.is_empty() {
+    if project_infos.is_empty() {
         println!("{}", "No NuGet packages found in the specified folder".bold().bright_red().to_string());
         return;
     }
 
-    let package_data = convert_and_map_packages(packages);
+    // for the future
+    // project_infos.sort_by(|a, b| a.project_name.cmp(&b.project_name));
+    // project_infos.iter_mut().for_each(|project| {
+    //     project.packages.sort_by(|a, b| a.name.cmp(&b.name));
+    // });
 
-    print_packages_info(&package_data);
+    print_packages_info(&project_infos);
 
     if args.report {
-        generate_markdown_report(package_data, folder.clone());
+        generate_markdown_report(project_infos, folder.clone());
     }
 }
 
-fn print_packages_info(package_data: &Vec<PackageInfo>) {
-    for info in package_data {
-        if info.is_parsed_ok {
-            println!(
-                "- {}, version {} {} {}",
-                info.name.bold().bright_blue(),
-                info.version.italic().bright_blue(),
-                if info.is_outdated {
-                    "[outdated]".bright_red()
-                } else {
-                    "".normal()
-                },
-                if info.is_outdated {
-                    format!(" latest: {}", info.latest_version.bright_green())
-                } else {
-                    "".to_string()
-                }
-            );
+fn print_packages_info(package_data: &Vec<ProjectInfo>) {
+    for project in package_data {
+        println!(
+            "{}",
+            format!("Project: {}", project.project_name.bold().bright_green())
+        );
 
-            println!("  license: {}", info.license_expression.bright_yellow());
-            println!("  license URL: {}", info.license_url.bright_purple());
-            println!("  description: {}", info.description.bright_cyan());
-            println!("  project URL: {}", info.project_url.bright_magenta());
-            println!("  released at: {}", info.published_date.bright_cyan());
-            println!();
-        } else {
-            println!(
-                "- {}, version {}",
-                info.name.bold().bright_blue(),
-                info.version.italic().bright_blue()
-            );
-            println!(
-                "  {}",
-                "Unable to fetch package details".italic().red().to_string()
-            );
-            println!();
+        for nuget in project.packages.iter() {
+            if nuget.is_parsed_ok {
+                println!(
+                    " - {}, version {} {} {}",
+                    nuget.name.bold().bright_blue(),
+                    nuget.version.italic().bright_blue(),
+                    if nuget.is_outdated {
+                        "[outdated]".bright_red()
+                    } else {
+                        "".normal()
+                    },
+                    if nuget.is_outdated {
+                        format!(" latest: {}", nuget.latest_version.bright_green())
+                    } else {
+                        "".to_string()
+                    }
+                );
+
+                println!("   license: {}", nuget.license_expression.bright_yellow());
+                println!("   license URL: {}", nuget.license_url.bright_purple());
+                println!("   description: {}", nuget.description.bright_cyan());
+                println!("   project URL: {}", nuget.project_url.bright_magenta());
+                println!("   released at: {}", nuget.published_date.bright_cyan());
+                println!();
+            } else {
+                println!(
+                    " - {}, version {}",
+                    nuget.name.bold().bright_blue(),
+                    nuget.version.italic().bright_blue()
+                );
+                println!(
+                    "   {}",
+                    "Unable to fetch package details".italic().red().to_string()
+                );
+                println!();
+            }
         }
     }
 }
 
-fn generate_markdown_report(package_data: Vec<PackageInfo>, save_folder_path: String) {
+fn generate_markdown_report(package_data: Vec<ProjectInfo>, save_folder_path: String) {
     let mut report = String::new();
 
     report.push_str("# NuGet Packages Report\n\n");
-    // report.push_str("Project X\n");
 
-    report.push_str("| Package Name | Version | Latest? | License | Description |\n");
-    report.push_str(" | --- | --- | --- | --- | --- |\n");
+    for project in package_data {
+        report.push_str(&format!("### Project {}\n", project.project_name));
 
-    for info in package_data {
-        if info.is_parsed_ok {
-            let outdated = if info.is_outdated {
-                format!("🔸 {}", info.latest_version)
+        report.push_str("| Package Name | Version | Latest? | License | Description |\n");
+        report.push_str("| --- | --- | --- | --- | --- |\n");
+
+        for package in project.packages.iter() {
+            if package.is_parsed_ok {
+                let outdated = if package.is_outdated {
+                    format!("🔸 {}", package.latest_version)
+                } else {
+                    "✅".to_string()
+                };
+
+                report.push_str(&format!(
+                    "| **[{}]({})** | {} | {} | [{}]({}) | {} |\n",
+                    package.name,
+                    package.project_url,
+                    package.version,
+                    outdated,
+                    package.license_expression,
+                    package.license_url,
+                    package.description
+                ));
             } else {
-                "✅".to_string()
-            };
-
-            report.push_str(&format!(
-                "| **[{}]({})** | {} | {} | [{}]({}) | {}\n",
-                info.name,
-                info.project_url,
-                info.version,
-                outdated,
-                info.license_expression,
-                info.license_url,
-                info.description
-            ));
-        } else {
-            report.push_str(&format!(
-                "| {} | {} | - | - | {}\n",
-                info.name,
-                info.version,
-                "🛑 error fetching details"
-            ));
+                report.push_str(&format!(
+                    "| {} | {} | - | - | {} | \n",
+                    package.name,
+                    package.version,
+                    "🛑 error fetching details"
+                ));
+            }
         }
     }
 
