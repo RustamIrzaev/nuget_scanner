@@ -2,6 +2,14 @@
 name = "nuget-scanner"
 version = "0.2.3"
 edition = "2021"
+repository = "https://github.com/RustamIrzaev/nuget_scanner"
+authors = ["Rustam Irzaiev"]
+license = "Apache-2.0"
+readme = "README.md"
+keywords = ["nuget", "scanner", "dependency", "license", "license-checker"]
+categories = ["command-line-utilities", "development-tools"]
+#description = ""
+#homepage = ""
 
 [dependencies]
 serde = { version = "1.0.203", features = ["derive"] }
