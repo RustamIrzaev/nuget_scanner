@@ -15,6 +15,9 @@ mod services;
 mod utils;
 
 fn main() {
+    // print!("\x1B[2J\x1B[1;1H");
+    print!("{esc}c", esc = 27 as char);
+
     let args = Cli::parse();
 
     let folder = args.folder.to_string_lossy().to_string();
