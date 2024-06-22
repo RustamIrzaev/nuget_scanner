@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
+use std::time::Instant;
 use clap::Parser;
 use colored::Colorize;
 
@@ -15,8 +16,9 @@ mod services;
 mod utils;
 
 fn main() {
-    // print!("\x1B[2J\x1B[1;1H");
-    print!("{esc}c", esc = 27 as char);
+    // print!("{esc}c", esc = 27 as char);
+
+    let start_time = Instant::now();
 
     let args = Cli::parse();
 
@@ -46,6 +48,8 @@ fn main() {
     if args.report {
         generate_markdown_report(project_infos, folder.clone());
     }
+
+    println!("\nCompleted in: {:.2?} seconds", start_time.elapsed().as_secs_f64());
 }
 
 fn print_packages_info(package_data: &Vec<ProjectInfo>) {
