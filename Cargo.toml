@@ -1,6 +1,6 @@
 [package]
 name = "nuget-scanner"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 repository = "https://github.com/RustamIrzaev/nuget_scanner"
 authors = ["Rustam Irzaiev"]
