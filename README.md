@@ -7,7 +7,9 @@ This application leverages Rust's performance and safety to provide quick and re
 
 > This is the successor of the [NuGet Helper](https://github.com/RustamIrzaev/NuGetHelper) that was released many years ago.
 
-(screenshot will be here one day)
+<p align="center">
+  <img width="70%" alt="main_menu" src="https://github.com/RustamIrzaev/nuget_scanner/assets/352703/adfc04c4-1e74-4c60-a8be-4a8f48e260c4">
+</p>
 
 ## Features
 - **Scan C# Projects**. Automatically detects and processes `.csproj` and `packages.config` files within the specified directory.
@@ -78,6 +80,10 @@ Completed in: 0.23 seconds
 ### Example report
 
 Demo report can be found [here](DEMO_LICENSE_REPORT.md).
+
+<p align="center">
+  <img width="70%" alt="main_menu" src="https://github.com/RustamIrzaev/nuget_scanner/assets/352703/afc993d6-ad40-47f3-a0e1-8249eea7bb52">
+</p>
 
 ## License
 
