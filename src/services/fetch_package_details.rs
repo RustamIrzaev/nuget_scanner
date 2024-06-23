@@ -23,7 +23,7 @@ struct RegistrationIndex {
 
 pub fn fetch_package_details(package_name: &str, version: &str) -> Option<CatalogEntry> {
     let url = format!(
-        "https://api.nuget.org/v3/registration5-gz-semver2/{}/index.json",
+        "https://api.nuget.org/v3/registration5-gz-semver1/{}/index.json",
         package_name.to_lowercase()
     );
     let client = Client::new();

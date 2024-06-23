@@ -58,6 +58,11 @@ fn print_packages_info(package_data: &Vec<ProjectInfo>) {
             "{}",
             format!("Project: {}", project.project_name.bold().bright_green())
         );
+        
+        if project.packages.is_empty() {
+            println!(" - No packages found in this project\n");
+            continue;
+        }
 
         for nuget in project.packages.iter() {
             if nuget.is_parsed_ok {
@@ -107,6 +112,11 @@ fn generate_markdown_report(package_data: Vec<ProjectInfo>, save_folder_path: St
     for project in package_data {
         report.push_str(&format!("### Project {}\n", project.project_name));
 
+        if project.packages.is_empty() {
+            report.push_str("No packages found in this project\n");
+            continue;
+        }
+        
         report.push_str("| Package Name | Version | Latest? | License | Description |\n");
         report.push_str("| --- | --- | --- | --- | --- |\n");
 

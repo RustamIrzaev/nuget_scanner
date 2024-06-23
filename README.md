@@ -26,7 +26,7 @@ This application leverages Rust's performance and safety to provide quick and re
 
 ### Notes
 - The application uses the NuGet API to fetch package details. Therefore, an active internet connection is required.
-- The inner parser uses NuGet SemVer2 so not every (old) package may be parsed correctly.
+- The inner parser uses NuGet SemVer1 so not every (old) package may be parsed correctly.
 
 ## Usage
 
@@ -71,16 +71,13 @@ Project: MyProject
   description: Package description
   project URL: https://github.com/RustamIrzaev/nuget_scanner
   released at: 08 Mar 2024
+
+Completed in: 0.23 seconds
 ```
 
 ### Example report
 
-(report demo will be added later)
-
-[//]: # (### Contributing)
-
-[//]: # ()
-[//]: # (Contributions are welcome! Please fork the repository and create a pull request with your changes.)
+Demo report can be found [here](DEMO_LICENSE_REPORT.md).
 
 ## License
 
