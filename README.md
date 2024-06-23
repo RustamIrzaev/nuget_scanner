@@ -46,12 +46,13 @@ cargo build --release
 To run the application, specify the directory to scan and optionally the maximum depth for scanning:
 
 ```bash
-cargo run -- /path/to/your/csharp/project --max-depth 5
+cargo run -- -f /path/to/your/csharp/project -r --max-depth 5
 ```
 
 ### Parameters
-- /path/to/your/csharp/project: path to the directory containing the C# projects.
-- --max-depth 5: (_Optional_) specifies the maximum depth for scanning directories. Default is 10.
+- `-f` or `--folder`: path to the directory containing the C# project(s).
+- `-r` or `--report`: to generate a report
+- `--max-depth`: (_Optional_) specifies the maximum depth for scanning directories. Default is 10.
 
 ## Example output
 
