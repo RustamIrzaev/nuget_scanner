@@ -35,7 +35,7 @@ pub fn generate_markdown_report(package_data: Vec<ProjectInfo>, save_folder_path
                     outdated,
                     package.license_expression,
                     package.license_url,
-                    package.description
+                    package.description.replace("|", " ")
                 ));
             } else {
                 report.push_str(&format!(
