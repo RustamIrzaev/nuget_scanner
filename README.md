@@ -30,7 +30,7 @@ This application leverages Rust's performance and safety to provide quick and re
 ### Notes
 
 - The application uses the NuGet API to fetch package details. Therefore, an active internet connection is required.
-- The inner parser uses NuGet SemVer1 so not every (old) package may be parsed correctly.
+- The inner parser uses NuGet SemVer2 so not every (old) package may be parsed correctly.
 
 ## Usage
 
@@ -45,10 +45,10 @@ Clone the repository and build the project using Cargo:
 ```bash
 git clone https://github.com/RustamIrzaev/nuget_scanner
 cd nuget_scanner
-cargo build --release # builds the project
+cargo build --release    # builds the project
 
-cd target/release     # switch to where the executable is placed
-./nuget-scanner ...   # run nuget-scanner!
+cd target/release        # switch to where the executable is placed
+./nuget-scanner -f <FOLDER> -r # run nuget-scanner! (see options below)
 ```
 
 ### Running the Application

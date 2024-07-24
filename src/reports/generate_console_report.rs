@@ -34,7 +34,7 @@ pub fn generate_console_report(package_data: &Vec<ProjectInfo>) {
                 println!("   license: {}", nuget.license_expression.bright_yellow());
                 println!("   license URL: {}", nuget.license_url.bright_purple());
                 println!("   description: {}", nuget.description.bright_cyan());
-                println!("   project URL: {}", nuget.project_url.bright_magenta());
+                // println!("   project URL: {}", nuget.project_url.bright_magenta());
                 println!("   released at: {}", nuget.published_date.bright_cyan());
                 println!();
             } else {
