@@ -43,7 +43,7 @@ This application leverages Rust's performance and safety to provide quick and re
 Clone the repository and build the project using Cargo:
 
 ```bash
-git clone https://github.com/RustamIrzaev/nuget_scanner
+git clone https://github.com/RustamIrzaev/nuget_scanner.git
 cd nuget_scanner
 cargo build --release    # builds the project
 
